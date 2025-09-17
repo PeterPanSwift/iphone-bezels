@@ -1,0 +1,302 @@
+{
+  "Bezels/iPhone 17/iPhone 17 - Black - Landscape.png": {
+    "width": 2760,
+    "height": 1350,
+    "screen": {
+      "x": 69,
+      "y": 72,
+      "width": 2622,
+      "height": 1206
+    }
+  },
+  "Bezels/iPhone 17/iPhone 17 - Black - Portrait.png": {
+    "width": 1350,
+    "height": 2760,
+    "screen": {
+      "x": 72,
+      "y": 69,
+      "width": 1206,
+      "height": 2622
+    }
+  },
+  "Bezels/iPhone 17/iPhone 17 - Lavender - Landscape.png": {
+    "width": 2760,
+    "height": 1350,
+    "screen": {
+      "x": 69,
+      "y": 72,
+      "width": 2622,
+      "height": 1206
+    }
+  },
+  "Bezels/iPhone 17/iPhone 17 - Lavender - Portrait.png": {
+    "width": 1350,
+    "height": 2760,
+    "screen": {
+      "x": 72,
+      "y": 69,
+      "width": 1206,
+      "height": 2622
+    }
+  },
+  "Bezels/iPhone 17/iPhone 17 - Mist Blue - Landscape.png": {
+    "width": 2760,
+    "height": 1350,
+    "screen": {
+      "x": 69,
+      "y": 72,
+      "width": 2622,
+      "height": 1206
+    }
+  },
+  "Bezels/iPhone 17/iPhone 17 - Mist Blue - Portrait.png": {
+    "width": 1350,
+    "height": 2760,
+    "screen": {
+      "x": 72,
+      "y": 69,
+      "width": 1206,
+      "height": 2622
+    }
+  },
+  "Bezels/iPhone 17/iPhone 17 - Sage - Landscape.png": {
+    "width": 2760,
+    "height": 1350,
+    "screen": {
+      "x": 69,
+      "y": 72,
+      "width": 2622,
+      "height": 1206
+    }
+  },
+  "Bezels/iPhone 17/iPhone 17 - Sage - Portrait.png": {
+    "width": 1350,
+    "height": 2760,
+    "screen": {
+      "x": 72,
+      "y": 69,
+      "width": 1206,
+      "height": 2622
+    }
+  },
+  "Bezels/iPhone 17/iPhone 17 - White - Landscape.png": {
+    "width": 2760,
+    "height": 1350,
+    "screen": {
+      "x": 69,
+      "y": 72,
+      "width": 2622,
+      "height": 1206
+    }
+  },
+  "Bezels/iPhone 17/iPhone 17 - White - Portrait.png": {
+    "width": 1350,
+    "height": 2760,
+    "screen": {
+      "x": 72,
+      "y": 69,
+      "width": 1206,
+      "height": 2622
+    }
+  },
+  "Bezels/iPhone 17 Pro/iPhone 17 Pro - Cosmic Orange - Landscape.png": {
+    "width": 2760,
+    "height": 1350,
+    "screen": {
+      "x": 69,
+      "y": 72,
+      "width": 2622,
+      "height": 1206
+    }
+  },
+  "Bezels/iPhone 17 Pro/iPhone 17 Pro - Cosmic Orange - Portrait.png": {
+    "width": 1350,
+    "height": 2760,
+    "screen": {
+      "x": 72,
+      "y": 69,
+      "width": 1206,
+      "height": 2622
+    }
+  },
+  "Bezels/iPhone 17 Pro/iPhone 17 Pro - Deep Blue - Landscape.png": {
+    "width": 2760,
+    "height": 1350,
+    "screen": {
+      "x": 69,
+      "y": 72,
+      "width": 2622,
+      "height": 1206
+    }
+  },
+  "Bezels/iPhone 17 Pro/iPhone 17 Pro - Deep Blue - Portrait.png": {
+    "width": 1350,
+    "height": 2760,
+    "screen": {
+      "x": 72,
+      "y": 69,
+      "width": 1206,
+      "height": 2622
+    }
+  },
+  "Bezels/iPhone 17 Pro/iPhone 17 Pro - Silver - Landscape.png": {
+    "width": 2760,
+    "height": 1350,
+    "screen": {
+      "x": 69,
+      "y": 72,
+      "width": 2622,
+      "height": 1206
+    }
+  },
+  "Bezels/iPhone 17 Pro/iPhone 17 Pro - Silver - Portrait.png": {
+    "width": 1350,
+    "height": 2760,
+    "screen": {
+      "x": 72,
+      "y": 69,
+      "width": 1206,
+      "height": 2622
+    }
+  },
+  "Bezels/iPhone 17 Pro Max/iPhone 17 Pro Max - Cosmic Orange - Landscape.png": {
+    "width": 3000,
+    "height": 1470,
+    "screen": {
+      "x": 66,
+      "y": 75,
+      "width": 2868,
+      "height": 1320
+    }
+  },
+  "Bezels/iPhone 17 Pro Max/iPhone 17 Pro Max - Cosmic Orange - Portrait.png": {
+    "width": 1470,
+    "height": 3000,
+    "screen": {
+      "x": 75,
+      "y": 66,
+      "width": 1320,
+      "height": 2868
+    }
+  },
+  "Bezels/iPhone 17 Pro Max/iPhone 17 Pro Max - Deep Blue - Landscape.png": {
+    "width": 3000,
+    "height": 1470,
+    "screen": {
+      "x": 66,
+      "y": 75,
+      "width": 2868,
+      "height": 1320
+    }
+  },
+  "Bezels/iPhone 17 Pro Max/iPhone 17 Pro Max - Deep Blue - Portrait.png": {
+    "width": 1470,
+    "height": 3000,
+    "screen": {
+      "x": 75,
+      "y": 66,
+      "width": 1320,
+      "height": 2868
+    }
+  },
+  "Bezels/iPhone 17 Pro Max/iPhone 17 Pro Max - Silver - Landscape.png": {
+    "width": 3000,
+    "height": 1470,
+    "screen": {
+      "x": 66,
+      "y": 75,
+      "width": 2868,
+      "height": 1320
+    }
+  },
+  "Bezels/iPhone 17 Pro Max/iPhone 17 Pro Max - Silver - Portrait.png": {
+    "width": 1470,
+    "height": 3000,
+    "screen": {
+      "x": 75,
+      "y": 66,
+      "width": 1320,
+      "height": 2868
+    }
+  },
+  "Bezels/iPhone Air/iPhone Air - Cloud White - Landscape.png": {
+    "width": 2880,
+    "height": 1380,
+    "screen": {
+      "x": 72,
+      "y": 60,
+      "width": 2736,
+      "height": 1260
+    }
+  },
+  "Bezels/iPhone Air/iPhone Air - Cloud White - Portrait.png": {
+    "width": 1380,
+    "height": 2880,
+    "screen": {
+      "x": 60,
+      "y": 72,
+      "width": 1260,
+      "height": 2736
+    }
+  },
+  "Bezels/iPhone Air/iPhone Air - Light Gold - Landscape.png": {
+    "width": 2880,
+    "height": 1380,
+    "screen": {
+      "x": 72,
+      "y": 60,
+      "width": 2736,
+      "height": 1260
+    }
+  },
+  "Bezels/iPhone Air/iPhone Air - Light Gold - Portrait.png": {
+    "width": 1380,
+    "height": 2880,
+    "screen": {
+      "x": 60,
+      "y": 72,
+      "width": 1260,
+      "height": 2736
+    }
+  },
+  "Bezels/iPhone Air/iPhone Air - Sky Blue - Landscape.png": {
+    "width": 2880,
+    "height": 1380,
+    "screen": {
+      "x": 72,
+      "y": 60,
+      "width": 2736,
+      "height": 1260
+    }
+  },
+  "Bezels/iPhone Air/iPhone Air - Sky Blue - Portrait.png": {
+    "width": 1380,
+    "height": 2880,
+    "screen": {
+      "x": 60,
+      "y": 72,
+      "width": 1260,
+      "height": 2736
+    }
+  },
+  "Bezels/iPhone Air/iPhone Air - Space Black - Landscape.png": {
+    "width": 2880,
+    "height": 1380,
+    "screen": {
+      "x": 72,
+      "y": 60,
+      "width": 2736,
+      "height": 1260
+    }
+  },
+  "Bezels/iPhone Air/iPhone Air - Space Black - Portrait.png": {
+    "width": 1380,
+    "height": 2880,
+    "screen": {
+      "x": 60,
+      "y": 72,
+      "width": 1260,
+      "height": 2736
+    }
+  }
+}

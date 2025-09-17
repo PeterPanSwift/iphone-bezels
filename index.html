@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iPhone App 截圖外框合成工具</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>iPhone App 截圖外框合成工具</h1>
+      <p>上傳或貼上 App 截圖（支援 PNG、JPG、GIF）並選擇想要的 iPhone 外框，立即產出帶框成品。</p>
+    </header>
+
+    <section class="controls" aria-label="合成設定">
+      <div class="field">
+        <label for="screenshotInput">App 截圖</label>
+        <input type="file" id="screenshotInput" accept="image/*">
+        <p id="screenshotInfo" class="hint"></p>
+      </div>
+
+      <div class="field">
+        <label for="deviceSelect">機型</label>
+        <select id="deviceSelect"></select>
+      </div>
+
+      <div class="field">
+        <label for="colorSelect">顏色</label>
+        <select id="colorSelect"></select>
+      </div>
+
+      <div class="field">
+        <label for="orientationSelect">方向</label>
+        <select id="orientationSelect"></select>
+      </div>
+
+      <div class="actions">
+        <button id="composeBtn" type="button" disabled>合成圖片</button>
+        <a id="downloadBtn" class="button" download="bezel.png" aria-disabled="true">下載 PNG</a>
+      </div>
+
+      <p id="statusMessage" class="status" role="status"></p>
+    </section>
+
+    <section class="preview" aria-label="預覽">
+      <div class="pane">
+        <h2>即時預覽</h2>
+        <canvas id="previewCanvas"></canvas>
+      </div>
+      <div class="pane">
+        <h2>輸出樣式</h2>
+        <img id="outputImage" alt="合成結果預覽">
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
