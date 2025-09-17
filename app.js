@@ -825,7 +825,7 @@ async function composeStatic() {
   setComposedOutput(dataUrl, 'image/png');
   const safeName = buildSafeFileName(device, color, orientation);
   updateDownloadLink(safeName, 'png');
-  return { statusMessage: '合成完成，可下載 PNG。' };
+  return { statusMessage: '合成完成' };
 }
 
 async function composeGif() {
