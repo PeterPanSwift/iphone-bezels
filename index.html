@@ -10,13 +10,13 @@
   <main class="container">
     <header>
       <h1>iPhone App 截圖外框合成工具</h1>
-      <p>上傳或貼上 App 截圖（支援 PNG、JPG、GIF）並選擇想要的 iPhone 外框，立即產出帶框成品。</p>
+      <p>上傳或貼上 App 截圖或影片（支援 PNG、JPG、GIF、MP4、MOV）並選擇想要的 iPhone 外框，立即產出帶框成品。</p>
     </header>
 
     <section class="controls" aria-label="合成設定">
       <div class="field">
         <label for="screenshotInput">App 截圖</label>
-        <input type="file" id="screenshotInput" accept="image/*">
+        <input type="file" id="screenshotInput" accept="image/*,video/mp4,video/quicktime">
         <p id="screenshotInfo" class="hint"></p>
       </div>
 
@@ -51,6 +51,7 @@
       <div class="pane">
         <h2>輸出樣式</h2>
         <img id="outputImage" alt="合成結果預覽">
+        <video id="outputVideo" controls playsinline muted hidden></video>
       </div>
     </section>
   </main>

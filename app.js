@@ -11,12 +11,15 @@ const downloadBtn = document.querySelector('#downloadBtn');
 const statusMessage = document.querySelector('#statusMessage');
 const previewCanvas = document.querySelector('#previewCanvas');
 const outputImage = document.querySelector('#outputImage');
+const outputVideo = document.querySelector('#outputVideo');
 
 let dataMap = {};
 let bezelMetadata = null;
 let selectedBezel = null;
 let screenshotImage = null;
 let screenshotGifFrames = null;
+let screenshotVideo = null;
+let screenshotVideoUrl = null;
 let screenshotDimensions = null;
 let screenshotType = 'image';
 let composedOutputUrl = null;
@@ -38,7 +41,7 @@ async function init() {
     composeBtn.disabled = true;
     setDownloadState(false);
     screenshotInfo.textContent = '可選擇檔案，或直接貼上圖片。';
-    setStatus('請上傳或貼上 App 截圖並選擇外框。');
+    setStatus('請上傳或貼上 App 截圖或影片並選擇外框。');
   } catch (error) {
     console.error(error);
     setStatus('載入失敗：' + error.message);
@@ -225,6 +228,13 @@ function resetComposedOutput() {
   composedOutputUrl = null;
   composedOutputType = null;
   outputImage.removeAttribute('src');
+  outputImage.hidden = false;
+  if (outputVideo) {
+    outputVideo.pause();
+    outputVideo.removeAttribute('src');
+    outputVideo.load();
+    outputVideo.hidden = true;
+  }
 }
 
 function setComposedOutput(url, type, { isObjectUrl = false } = {}) {
@@ -234,12 +244,37 @@ function setComposedOutput(url, type, { isObjectUrl = false } = {}) {
   composedOutputUrl = url;
   composedOutputType = type;
   composedObjectUrl = isObjectUrl ? url : null;
-  outputImage.src = url;
+  if (type && type.startsWith('video')) {
+    if (!outputVideo) return;
+    outputImage.hidden = true;
+    outputVideo.hidden = false;
+    outputVideo.src = url;
+    outputVideo.load();
+    outputVideo.muted = true;
+    outputVideo.play().catch(() => {});
+  } else {
+    outputImage.hidden = false;
+    outputImage.src = url;
+    if (outputVideo) {
+      outputVideo.hidden = true;
+      outputVideo.pause();
+    }
+  }
 }
 
 function clearScreenshot() {
   screenshotImage = null;
   screenshotGifFrames = null;
+  if (screenshotVideo) {
+    screenshotVideo.pause();
+    screenshotVideo.src = '';
+    screenshotVideo.load();
+    screenshotVideo = null;
+  }
+  if (screenshotVideoUrl) {
+    URL.revokeObjectURL(screenshotVideoUrl);
+    screenshotVideoUrl = null;
+  }
   screenshotDimensions = null;
   screenshotType = 'image';
   resetComposedOutput();
@@ -252,6 +287,16 @@ async function processScreenshotFile(file, { source = 'upload' } = {}) {
   if (!file) return;
   try {
     resetComposedOutput();
+    if (screenshotVideo) {
+      screenshotVideo.pause();
+      screenshotVideo.src = '';
+      screenshotVideo.load();
+      screenshotVideo = null;
+    }
+    if (screenshotVideoUrl) {
+      URL.revokeObjectURL(screenshotVideoUrl);
+      screenshotVideoUrl = null;
+    }
     let width;
     let height;
     let orientation;
@@ -266,6 +311,18 @@ async function processScreenshotFile(file, { source = 'upload' } = {}) {
       orientation = getOrientation(width, height);
       infoLabel = `GIF · 幀數：${gifData.frames.length}`;
       screenshotImage = null;
+    } else if (file.type.startsWith('video/') || file.name?.toLowerCase().match(/\.(mp4|mov)$/)) {
+      const videoData = await loadVideoFromFile(file);
+      screenshotType = 'video';
+      screenshotVideo = videoData.video;
+      screenshotVideoUrl = videoData.url;
+      screenshotGifFrames = null;
+      screenshotImage = null;
+      width = videoData.width;
+      height = videoData.height;
+      orientation = getOrientation(width, height);
+      const durationSeconds = Number.isFinite(videoData.duration) ? videoData.duration : 0;
+      infoLabel = `影片 · 時長：${durationSeconds.toFixed(1)} 秒`;
     } else {
       const { image, width: imgWidth, height: imgHeight } = await loadImageFromFile(file);
       screenshotType = 'image';
@@ -340,6 +397,9 @@ function shouldIgnorePasteTarget(activeElement) {
 function isScreenshotReady() {
   if (screenshotType === 'gif') {
     return Array.isArray(screenshotGifFrames) && screenshotGifFrames.length > 0;
+  }
+  if (screenshotType === 'video') {
+    return Boolean(screenshotVideo);
   }
   return Boolean(screenshotImage);
 }
@@ -628,6 +688,43 @@ async function loadGifFromFile(file) {
   };
 }
 
+async function loadVideoFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.src = url;
+    video.muted = true;
+    video.playsInline = true;
+    const cleanup = () => {
+      video.removeEventListener('loadedmetadata', onLoaded);
+      video.removeEventListener('error', onError);
+    };
+    const onLoaded = () => {
+      cleanup();
+      if (!video.videoWidth || !video.videoHeight) {
+        reject(new Error('無法取得影片尺寸'));
+        URL.revokeObjectURL(url);
+        return;
+      }
+      resolve({
+        video,
+        url,
+        width: video.videoWidth,
+        height: video.videoHeight,
+        duration: video.duration || 0,
+      });
+    };
+    const onError = () => {
+      cleanup();
+      URL.revokeObjectURL(url);
+      reject(new Error('影片讀取失敗'));
+    };
+    video.addEventListener('loadedmetadata', onLoaded, { once: true });
+    video.addEventListener('error', onError, { once: true });
+  });
+}
+
 function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -781,7 +878,14 @@ async function compose() {
   composeBtn.disabled = true;
   try {
     setStatus('合成中…');
-    const result = screenshotType === 'gif' ? await composeGif() : await composeStatic();
+    let result;
+    if (screenshotType === 'gif') {
+      result = await composeGif();
+    } else if (screenshotType === 'video') {
+      result = await composeVideo();
+    } else {
+      result = await composeStatic();
+    }
     setStatus(result.statusMessage);
   } catch (error) {
     console.error(error);
@@ -927,9 +1031,222 @@ async function composeGif() {
   return { statusMessage: 'GIF 合成完成，可下載。' };
 }
 
+async function composeVideo() {
+  if (!screenshotVideo || !screenshotVideoUrl) {
+    throw new Error('影片尚未準備完成');
+  }
+  if (typeof MediaRecorder === 'undefined') {
+    throw new Error('瀏覽器不支援 MediaRecorder 影片輸出');
+  }
+  const capture = previewCanvas.captureStream
+    ? previewCanvas.captureStream(30)
+    : previewCanvas.mozCaptureStream
+      ? previewCanvas.mozCaptureStream(30)
+      : null;
+  if (!capture) {
+    throw new Error('瀏覽器不支援畫面擷取');
+  }
+  const mimeType = getSupportedRecorderMimeType();
+  if (!mimeType) {
+    throw new Error('此瀏覽器不支援 MP4 影片錄製');
+  }
+
+  const { path, meta, device, color, orientation } = selectedBezel;
+  const bezel = await loadImage(path);
+  const mask = await getMask(path, bezel, meta);
+  const ctx = previewCanvas.getContext('2d');
+  previewCanvas.width = meta.width;
+  previewCanvas.height = meta.height;
+  ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+  const screen = meta.screen;
+  const shotWidth = screenshotDimensions.width;
+  const shotHeight = screenshotDimensions.height;
+  const scale = Math.max(screen.width / shotWidth, screen.height / shotHeight);
+  const targetWidth = shotWidth * scale;
+  const targetHeight = shotHeight * scale;
+  const offsetX = screen.x + (screen.width - targetWidth) / 2;
+  const offsetY = screen.y + (screen.height - targetHeight) / 2;
+
+  const chunks = [];
+  let recorder;
+  const audioStreams = [];
+  try {
+    recorder = new MediaRecorder(capture, { mimeType });
+  } catch (error) {
+    throw new Error('無法啟動影片錄製');
+  }
+
+  recorder.ondataavailable = (event) => {
+    if (event.data && event.data.size) {
+      chunks.push(event.data);
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    let rafId = null;
+    let resolved = false;
+    const safeName = buildSafeFileName(device, color, orientation);
+
+    const finish = (result) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(result);
+    };
+
+    const fail = (error) => {
+      if (resolved) return;
+      resolved = true;
+      reject(error instanceof Error ? error : new Error(error || '影片處理失敗'));
+    };
+
+    const video = document.createElement('video');
+    video.src = screenshotVideoUrl;
+    video.playsInline = true;
+    video.crossOrigin = 'anonymous';
+    video.muted = false;
+    video.volume = 1;
+    video.preload = 'auto';
+
+    const renderFrame = () => {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(screen.x, screen.y, screen.width, screen.height);
+      ctx.clip();
+      ctx.drawImage(video, offsetX, offsetY, targetWidth, targetHeight);
+      ctx.restore();
+
+      ctx.globalCompositeOperation = 'destination-in';
+      ctx.drawImage(mask, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(bezel, 0, 0);
+
+      if (!video.paused && !video.ended) {
+        rafId = requestAnimationFrame(renderFrame);
+      }
+    };
+
+    const stopRecording = () => {
+      video.removeEventListener('ended', stopRecording);
+      video.removeEventListener('error', onVideoError);
+      if (rafId) cancelAnimationFrame(rafId);
+      if (recorder.state === 'recording') {
+        recorder.stop();
+      }
+      capture.getTracks().forEach((track) => track.stop());
+      audioStreams.forEach((stream) => {
+        stream.getTracks().forEach((track) => track.stop());
+      });
+      video.pause();
+      video.src = '';
+      video.load();
+    };
+
+    const onVideoError = () => {
+      stopRecording();
+      fail(new Error('影片播放失敗'));
+    };
+
+    recorder.onerror = () => {
+      stopRecording();
+      fail(new Error('錄製過程發生錯誤'));
+    };
+
+    recorder.onstop = () => {
+      if (resolved) {
+        return;
+      }
+      if (rafId) cancelAnimationFrame(rafId);
+      const blob = new Blob(chunks, { type: mimeType });
+      const blobUrl = URL.createObjectURL(blob);
+      setComposedOutput(blobUrl, mimeType, { isObjectUrl: true });
+      updateDownloadLink(safeName, mimeTypeToExtension(mimeType));
+      finish({ statusMessage: '影片合成完成' });
+    };
+
+    const attachAudioTracks = () => {
+      const audioStream = video.captureStream?.() ?? video.mozCaptureStream?.();
+      if (!audioStream) return;
+      const tracks = audioStream.getAudioTracks();
+      if (!tracks.length) return;
+      audioStreams.push(audioStream);
+      tracks.forEach((track) => capture.addTrack(track));
+    };
+
+    const startPlayback = async () => {
+      video.currentTime = 0;
+      try {
+        await video.play();
+      } catch (error) {
+        capture.getTracks().forEach((track) => track.stop());
+        fail(new Error('影片播放失敗'));
+        return;
+      }
+
+      attachAudioTracks();
+
+      try {
+        recorder.start();
+      } catch (error) {
+        capture.getTracks().forEach((track) => track.stop());
+        audioStreams.forEach((stream) => {
+          stream.getTracks().forEach((track) => track.stop());
+        });
+        video.pause();
+        fail(new Error('無法開始錄製影片'));
+        return;
+      }
+
+      renderFrame();
+    };
+
+    video.addEventListener('ended', stopRecording, { once: true });
+    video.addEventListener('error', onVideoError, { once: true });
+
+    if (video.readyState >= 2) {
+      startPlayback().catch(() => {});
+    } else {
+      const onLoaded = () => {
+        startPlayback().catch(() => {});
+      };
+      video.addEventListener('loadeddata', onLoaded, { once: true });
+    }
+  });
+}
+
 function updateDownloadLink(safeName, extension) {
   if (!composedOutputUrl) return;
   downloadBtn.href = composedOutputUrl;
   downloadBtn.download = `screenshot-${safeName}.${extension}`;
   setDownloadState(true);
+}
+
+function getSupportedRecorderMimeType() {
+  if (typeof MediaRecorder === 'undefined') return '';
+  const mp4Candidates = [
+    'video/mp4;codecs=avc1.64001F,mp4a.40.2',
+    'video/mp4;codecs=avc1.4D401E,mp4a.40.2',
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+    'video/mp4;codecs=avc1,mp4a.40.2',
+    'video/mp4;codecs=h264,mp4a.40.2',
+    'video/mp4;codecs=avc1.42E01E',
+    'video/mp4',
+  ];
+  for (const type of mp4Candidates) {
+    if (MediaRecorder.isTypeSupported?.(type)) {
+      return type;
+    }
+  }
+  return '';
+}
+
+function mimeTypeToExtension(mime) {
+  if (!mime) return 'mp4';
+  if (mime.includes('mp4')) return 'mp4';
+  if (mime.includes('webm')) return 'webm';
+  if (mime.includes('ogg')) return 'ogv';
+  return 'mp4';
 }
