@@ -6,6 +6,7 @@ const screenshotInfo = document.querySelector('#screenshotInfo');
 const deviceSelect = document.querySelector('#deviceSelect');
 const colorSelect = document.querySelector('#colorSelect');
 const orientationSelect = document.querySelector('#orientationSelect');
+const resetBtn = document.querySelector('#resetBtn');
 const composeBtn = document.querySelector('#composeBtn');
 const downloadBtn = document.querySelector('#downloadBtn');
 const statusMessage = document.querySelector('#statusMessage');
@@ -180,6 +181,12 @@ orientationSelect.addEventListener('change', () => {
   updateSelectedBezel();
 });
 
+if (resetBtn) {
+  resetBtn.addEventListener('click', () => {
+    handleReset();
+  });
+}
+
 composeBtn.addEventListener('click', () => {
   compose();
 });
@@ -218,6 +225,11 @@ function setDownloadState(enabled) {
 
 function setStatus(message) {
   statusMessage.textContent = message;
+}
+
+function handleReset() {
+  clearScreenshot();
+  setStatus('已重設，請上傳或貼上 App 截圖或影片並選擇外框。');
 }
 
 function resetComposedOutput() {
@@ -277,6 +289,15 @@ function clearScreenshot() {
   }
   screenshotDimensions = null;
   screenshotType = 'image';
+  if (previewCanvas) {
+    const ctx = previewCanvas.getContext('2d');
+    if (ctx) {
+      ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    }
+  }
+  if (screenshotInput) {
+    screenshotInput.value = '';
+  }
   resetComposedOutput();
   setDownloadState(false);
   screenshotInfo.textContent = '可選擇檔案，或直接貼上圖片。';
