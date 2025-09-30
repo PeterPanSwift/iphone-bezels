@@ -1481,29 +1481,34 @@ async function copyComposedImage() {
       return;
     }
 
-    let blob;
+    // Safari requires ClipboardItem to be created synchronously with a Promise
     if (composedOutputType === 'image/gif') {
-      // For GIF, fetch the blob from the object URL
-      const response = await fetch(composedOutputUrl);
-      blob = await response.blob();
-    } else {
-      // For static images, convert canvas to blob
-      blob = await new Promise((resolve, reject) => {
-        previewCanvas.toBlob((b) => {
-          if (b) resolve(b);
-          else reject(new Error('無法轉換圖片'));
-        }, 'image/png');
+      // For GIF
+      const item = new ClipboardItem({
+        'image/gif': fetch(composedOutputUrl).then(r => r.blob())
       });
+      await navigator.clipboard.write([item]);
+    } else {
+      // For static images - use PNG format
+      const item = new ClipboardItem({
+        'image/png': new Promise((resolve, reject) => {
+          previewCanvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('無法轉換圖片'));
+          }, 'image/png');
+        })
+      });
+      await navigator.clipboard.write([item]);
     }
-
-    await navigator.clipboard.write([
-      new ClipboardItem({ [blob.type]: blob })
-    ]);
 
     setStatus('已複製到剪貼簿');
   } catch (error) {
     console.error(error);
-    setStatus('複製失敗：' + error.message);
+    if (error.name === 'NotAllowedError') {
+      setStatus('複製失敗：瀏覽器未授予權限。請使用下載功能。');
+    } else {
+      setStatus('複製失敗：' + error.message + '。請使用下載功能。');
+    }
   }
 }
 
@@ -1622,6 +1627,12 @@ async function copyScaledVersion() {
 
       const bytes = encoder.bytes();
       blob = new Blob([bytes], { type: 'image/gif' });
+
+      // Copy GIF to clipboard
+      const item = new ClipboardItem({
+        'image/gif': Promise.resolve(blob)
+      });
+      await navigator.clipboard.write([item]);
     } else {
       // For static images (PNG, JPG)
       const img = new Image();
@@ -1637,21 +1648,25 @@ async function copyScaledVersion() {
       const scaledCtx = scaledCanvas.getContext('2d');
       scaledCtx.drawImage(img, 0, 0, scaledCanvas.width, scaledCanvas.height);
 
-      blob = await new Promise((resolve, reject) => {
-        scaledCanvas.toBlob((b) => {
-          if (b) resolve(b);
-          else reject(new Error('無法轉換圖片'));
-        }, 'image/png');
+      // Copy scaled image to clipboard - Safari compatible
+      const item = new ClipboardItem({
+        'image/png': new Promise((resolve, reject) => {
+          scaledCanvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('無法轉換圖片'));
+          }, 'image/png');
+        })
       });
+      await navigator.clipboard.write([item]);
     }
-
-    await navigator.clipboard.write([
-      new ClipboardItem({ [blob.type]: blob })
-    ]);
 
     setStatus('縮小圖已複製到剪貼簿');
   } catch (error) {
     console.error(error);
-    setStatus('複製縮小圖失敗：' + error.message);
+    if (error.name === 'NotAllowedError') {
+      setStatus('複製失敗：瀏覽器未授予權限。請使用下載功能。');
+    } else {
+      setStatus('複製縮小圖失敗：' + error.message + '。請使用下載功能。');
+    }
   }
 }
