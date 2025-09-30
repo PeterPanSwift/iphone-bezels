@@ -1481,13 +1481,25 @@ async function copyComposedImage() {
       return;
     }
 
-    // Safari requires ClipboardItem to be created synchronously with a Promise
+    // Check if clipboard write is supported
+    if (!navigator.clipboard || !navigator.clipboard.write) {
+      setStatus('此瀏覽器不支援複製功能。請使用下載功能。');
+      return;
+    }
+
+    // Safari doesn't support image/gif in clipboard, convert to PNG for GIF
     if (composedOutputType === 'image/gif') {
-      // For GIF
+      // For GIF, copy the first frame as PNG
       const item = new ClipboardItem({
-        'image/gif': fetch(composedOutputUrl).then(r => r.blob())
+        'image/png': new Promise((resolve, reject) => {
+          previewCanvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('無法轉換圖片'));
+          }, 'image/png');
+        })
       });
       await navigator.clipboard.write([item]);
+      setStatus('已複製到剪貼簿（GIF 已轉為靜態圖片）');
     } else {
       // For static images - use PNG format
       const item = new ClipboardItem({
@@ -1499,13 +1511,12 @@ async function copyComposedImage() {
         })
       });
       await navigator.clipboard.write([item]);
+      setStatus('已複製到剪貼簿');
     }
-
-    setStatus('已複製到剪貼簿');
   } catch (error) {
     console.error(error);
     if (error.name === 'NotAllowedError') {
-      setStatus('複製失敗：瀏覽器未授予權限。請使用下載功能。');
+      setStatus('Safari 需要 HTTPS 才能使用複製功能。請使用下載功能。');
     } else {
       setStatus('複製失敗：' + error.message + '。請使用下載功能。');
     }
@@ -1523,6 +1534,12 @@ async function copyScaledVersion() {
 
     if (composedOutputType.startsWith('video')) {
       setStatus('影片暫不支援縮小功能');
+      return;
+    }
+
+    // Check if clipboard write is supported
+    if (!navigator.clipboard || !navigator.clipboard.write) {
+      setStatus('此瀏覽器不支援複製功能。請使用下載功能。');
       return;
     }
 
@@ -1628,11 +1645,24 @@ async function copyScaledVersion() {
       const bytes = encoder.bytes();
       blob = new Blob([bytes], { type: 'image/gif' });
 
-      // Copy GIF to clipboard
+      // Safari doesn't support image/gif, render last frame to canvas and copy as PNG
+      const lastFrame = composedFrames[composedFrames.length - 1];
+      const gifFrameCanvas = document.createElement('canvas');
+      gifFrameCanvas.width = scaledCanvas.width;
+      gifFrameCanvas.height = scaledCanvas.height;
+      const gifFrameCtx = gifFrameCanvas.getContext('2d');
+      gifFrameCtx.putImageData(lastFrame.imageData, 0, 0);
+
       const item = new ClipboardItem({
-        'image/gif': Promise.resolve(blob)
+        'image/png': new Promise((resolve, reject) => {
+          gifFrameCanvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('無法轉換圖片'));
+          }, 'image/png');
+        })
       });
       await navigator.clipboard.write([item]);
+      setStatus('縮小圖已複製到剪貼簿（GIF 已轉為靜態圖片）');
     } else {
       // For static images (PNG, JPG)
       const img = new Image();
@@ -1658,13 +1688,12 @@ async function copyScaledVersion() {
         })
       });
       await navigator.clipboard.write([item]);
+      setStatus('縮小圖已複製到剪貼簿');
     }
-
-    setStatus('縮小圖已複製到剪貼簿');
   } catch (error) {
     console.error(error);
     if (error.name === 'NotAllowedError') {
-      setStatus('複製失敗：瀏覽器未授予權限。請使用下載功能。');
+      setStatus('Safari 需要 HTTPS 才能使用複製功能。請使用下載功能。');
     } else {
       setStatus('複製縮小圖失敗：' + error.message + '。請使用下載功能。');
     }
