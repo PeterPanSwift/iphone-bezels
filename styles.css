@@ -129,14 +129,16 @@ button,
 }
 
 button[disabled],
+button[aria-disabled="true"],
 .button[aria-disabled="true"] {
   background: rgba(148, 163, 184, 0.2);
   color: rgba(226, 232, 240, 0.4);
   cursor: not-allowed;
   box-shadow: none;
+  pointer-events: none;
 }
 
-button:not([disabled]):hover,
+button:not([disabled]):not([aria-disabled="true"]):hover,
 .button[aria-disabled="false"]:hover {
   transform: translateY(-1px);
   box-shadow: 0 10px 25px rgba(56, 189, 248, 0.35);
