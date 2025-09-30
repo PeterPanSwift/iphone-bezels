@@ -9,7 +9,9 @@ const orientationSelect = document.querySelector('#orientationSelect');
 const resetBtn = document.querySelector('#resetBtn');
 const composeBtn = document.querySelector('#composeBtn');
 const downloadBtn = document.querySelector('#downloadBtn');
+const copyBtn = document.querySelector('#copyBtn');
 const downloadScaledBtn = document.querySelector('#downloadScaledBtn');
+const copyScaledBtn = document.querySelector('#copyScaledBtn');
 const statusMessage = document.querySelector('#statusMessage');
 const previewCanvas = document.querySelector('#previewCanvas');
 const outputImage = document.querySelector('#outputImage');
@@ -198,12 +200,28 @@ downloadBtn.addEventListener('click', (event) => {
   }
 });
 
+copyBtn.addEventListener('click', async (event) => {
+  event.preventDefault();
+  if (copyBtn.getAttribute('aria-disabled') === 'true') {
+    return;
+  }
+  await copyComposedImage();
+});
+
 downloadScaledBtn.addEventListener('click', async (event) => {
   event.preventDefault();
   if (downloadScaledBtn.getAttribute('aria-disabled') === 'true') {
     return;
   }
   await downloadScaledVersion();
+});
+
+copyScaledBtn.addEventListener('click', async (event) => {
+  event.preventDefault();
+  if (copyScaledBtn.getAttribute('aria-disabled') === 'true') {
+    return;
+  }
+  await copyScaledVersion();
 });
 
 function refreshComposeState({ screenshotOrientation } = {}) {
@@ -226,12 +244,16 @@ function refreshComposeState({ screenshotOrientation } = {}) {
 function setDownloadState(enabled) {
   if (enabled) {
     downloadBtn.setAttribute('aria-disabled', 'false');
+    copyBtn.setAttribute('aria-disabled', 'false');
     downloadScaledBtn.setAttribute('aria-disabled', 'false');
+    copyScaledBtn.setAttribute('aria-disabled', 'false');
   } else {
     downloadBtn.setAttribute('aria-disabled', 'true');
     downloadBtn.removeAttribute('href');
+    copyBtn.setAttribute('aria-disabled', 'true');
     downloadScaledBtn.setAttribute('aria-disabled', 'true');
     downloadScaledBtn.removeAttribute('href');
+    copyScaledBtn.setAttribute('aria-disabled', 'true');
   }
 }
 
@@ -1442,5 +1464,194 @@ async function downloadScaledVersion() {
   } catch (error) {
     console.error(error);
     setStatus('產生縮小圖失敗：' + error.message);
+  }
+}
+
+async function copyComposedImage() {
+  if (!composedOutputUrl || !composedOutputType) {
+    setStatus('請先完成合成再複製圖片');
+    return;
+  }
+
+  try {
+    setStatus('正在複製到剪貼簿…');
+
+    if (composedOutputType.startsWith('video')) {
+      setStatus('影片暫不支援複製功能');
+      return;
+    }
+
+    let blob;
+    if (composedOutputType === 'image/gif') {
+      // For GIF, fetch the blob from the object URL
+      const response = await fetch(composedOutputUrl);
+      blob = await response.blob();
+    } else {
+      // For static images, convert canvas to blob
+      blob = await new Promise((resolve, reject) => {
+        previewCanvas.toBlob((b) => {
+          if (b) resolve(b);
+          else reject(new Error('無法轉換圖片'));
+        }, 'image/png');
+      });
+    }
+
+    await navigator.clipboard.write([
+      new ClipboardItem({ [blob.type]: blob })
+    ]);
+
+    setStatus('已複製到剪貼簿');
+  } catch (error) {
+    console.error(error);
+    setStatus('複製失敗：' + error.message);
+  }
+}
+
+async function copyScaledVersion() {
+  if (!composedOutputUrl || !composedOutputType) {
+    setStatus('請先完成合成再複製縮小圖');
+    return;
+  }
+
+  try {
+    setStatus('產生縮小圖並複製中…');
+
+    if (composedOutputType.startsWith('video')) {
+      setStatus('影片暫不支援縮小功能');
+      return;
+    }
+
+    const scale = 0.5;
+    let blob;
+
+    if (composedOutputType === 'image/gif') {
+      // For GIF, scale using canvas
+      if (!Array.isArray(screenshotGifFrames) || !screenshotGifFrames.length) {
+        setStatus('GIF 幀資料不足');
+        return;
+      }
+
+      const { path, meta, device, color, orientation } = selectedBezel;
+      const bezel = await loadImage(path);
+      const mask = await getMask(path, bezel, meta);
+
+      const scaledCanvas = document.createElement('canvas');
+      scaledCanvas.width = Math.floor(meta.width * scale);
+      scaledCanvas.height = Math.floor(meta.height * scale);
+      const scaledCtx = scaledCanvas.getContext('2d');
+
+      const fullCanvas = document.createElement('canvas');
+      fullCanvas.width = meta.width;
+      fullCanvas.height = meta.height;
+      const fullCtx = fullCanvas.getContext('2d');
+
+      const screen = meta.screen;
+      const shotWidth = screenshotDimensions.width;
+      const shotHeight = screenshotDimensions.height;
+      const fullScale = Math.max(screen.width / shotWidth, screen.height / shotHeight);
+      const targetWidth = shotWidth * fullScale;
+      const targetHeight = shotHeight * fullScale;
+      const offsetX = screen.x + (screen.width - targetWidth) / 2;
+      const offsetY = screen.y + (screen.height - targetHeight) / 2;
+
+      const frameCanvas = document.createElement('canvas');
+      frameCanvas.width = shotWidth;
+      frameCanvas.height = shotHeight;
+      const frameCtx = frameCanvas.getContext('2d');
+
+      const composedFrames = [];
+
+      screenshotGifFrames.forEach((frame) => {
+        frameCtx.putImageData(frame.imageData, 0, 0);
+        fullCtx.globalCompositeOperation = 'source-over';
+        fullCtx.clearRect(0, 0, fullCanvas.width, fullCanvas.height);
+
+        fullCtx.save();
+        fullCtx.beginPath();
+        fullCtx.rect(screen.x, screen.y, screen.width, screen.height);
+        fullCtx.clip();
+        fullCtx.drawImage(frameCanvas, offsetX, offsetY, targetWidth, targetHeight);
+        fullCtx.restore();
+
+        fullCtx.globalCompositeOperation = 'destination-in';
+        fullCtx.drawImage(mask, 0, 0);
+        fullCtx.globalCompositeOperation = 'source-over';
+        fullCtx.drawImage(bezel, 0, 0);
+
+        // Scale down the frame
+        scaledCtx.clearRect(0, 0, scaledCanvas.width, scaledCanvas.height);
+        scaledCtx.drawImage(fullCanvas, 0, 0, scaledCanvas.width, scaledCanvas.height);
+
+        const scaledFrame = scaledCtx.getImageData(0, 0, scaledCanvas.width, scaledCanvas.height);
+        composedFrames.push({ imageData: scaledFrame, delay: frame.delay });
+      });
+
+      // Build palette and encode GIF
+      const sampleFrameSize = composedFrames[0].imageData.data.length;
+      const sampleCount = Math.min(composedFrames.length, 5);
+      const sampleData = new Uint8Array(sampleFrameSize * sampleCount);
+      for (let i = 0; i < sampleCount; i += 1) {
+        sampleData.set(composedFrames[i].imageData.data, i * sampleFrameSize);
+      }
+
+      const palette = quantize(sampleData, 256, {
+        format: 'rgba4444',
+        oneBitAlpha: true,
+        clearAlpha: true,
+        clearAlphaThreshold: 0,
+      });
+      const transparentIndex = palette.findIndex((color) => color.length > 3 && color[3] === 0);
+
+      const encoder = GIFEncoder();
+      composedFrames.forEach((frame, index) => {
+        const indexed = applyPalette(frame.imageData.data, palette, 'rgba4444');
+        const frameOptions = {
+          delay: frame.delay,
+        };
+        if (index === 0) {
+          frameOptions.palette = palette;
+          frameOptions.repeat = 0;
+        }
+        if (transparentIndex >= 0) {
+          frameOptions.transparent = true;
+          frameOptions.transparentIndex = transparentIndex;
+        }
+        encoder.writeFrame(indexed, scaledCanvas.width, scaledCanvas.height, frameOptions);
+      });
+      encoder.finish();
+
+      const bytes = encoder.bytes();
+      blob = new Blob([bytes], { type: 'image/gif' });
+    } else {
+      // For static images (PNG, JPG)
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = composedOutputUrl;
+      });
+
+      const scaledCanvas = document.createElement('canvas');
+      scaledCanvas.width = Math.floor(img.width * scale);
+      scaledCanvas.height = Math.floor(img.height * scale);
+      const scaledCtx = scaledCanvas.getContext('2d');
+      scaledCtx.drawImage(img, 0, 0, scaledCanvas.width, scaledCanvas.height);
+
+      blob = await new Promise((resolve, reject) => {
+        scaledCanvas.toBlob((b) => {
+          if (b) resolve(b);
+          else reject(new Error('無法轉換圖片'));
+        }, 'image/png');
+      });
+    }
+
+    await navigator.clipboard.write([
+      new ClipboardItem({ [blob.type]: blob })
+    ]);
+
+    setStatus('縮小圖已複製到剪貼簿');
+  } catch (error) {
+    console.error(error);
+    setStatus('複製縮小圖失敗：' + error.message);
   }
 }
