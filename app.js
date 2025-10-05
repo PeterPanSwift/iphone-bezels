@@ -16,6 +16,18 @@ const statusMessage = document.querySelector('#statusMessage');
 const previewCanvas = document.querySelector('#previewCanvas');
 const outputImage = document.querySelector('#outputImage');
 const outputVideo = document.querySelector('#outputVideo');
+const designBtn = document.querySelector('#designBtn');
+const designSection = document.querySelector('#designSection');
+const designTextInput = document.querySelector('#designText');
+const gradientStartInput = document.querySelector('#gradientStart');
+const gradientEndInput = document.querySelector('#gradientEnd');
+const designTextColorInput = document.querySelector('#designTextColor');
+const designTextSizeInput = document.querySelector('#designTextSize');
+const applyDesignBtn = document.querySelector('#applyDesignBtn');
+const downloadDesignBtn = document.querySelector('#downloadDesignBtn');
+const copyDesignBtn = document.querySelector('#copyDesignBtn');
+const designCanvas = document.querySelector('#designCanvas');
+const DESIGN_FONT_FAMILY = '"Baloo 2", "Fredoka", "Comic Sans MS", cursive';
 
 let dataMap = {};
 let bezelMetadata = null;
@@ -31,6 +43,12 @@ let composedOutputType = null;
 let composedObjectUrl = null;
 const bezelCache = new Map();
 const maskCache = new Map();
+let designImageDataUrl = null;
+let designNeedsRefresh = true;
+let designGenerationToken = 0;
+let designUpdateTimeout = null;
+let designImageCache = { url: null, promise: null };
+let designFontReadyPromise = null;
 
 init();
 
@@ -224,6 +242,44 @@ copyScaledBtn.addEventListener('click', async (event) => {
   await copyScaledVersion();
 });
 
+if (designBtn) {
+  designBtn.addEventListener('click', () => {
+    handleDesignToggle();
+  });
+}
+
+if (applyDesignBtn) {
+  applyDesignBtn.addEventListener('click', () => {
+    generateDesign({ announce: true });
+  });
+}
+
+const designInputs = [designTextInput, gradientStartInput, gradientEndInput, designTextColorInput, designTextSizeInput].filter(Boolean);
+designInputs.forEach((input) => {
+  input.addEventListener('input', () => {
+    designNeedsRefresh = true;
+    scheduleDesignUpdate();
+  });
+});
+
+if (copyDesignBtn) {
+  copyDesignBtn.addEventListener('click', async (event) => {
+    event.preventDefault();
+    if (copyDesignBtn.getAttribute('aria-disabled') === 'true') {
+      return;
+    }
+    await copyDesignImage();
+  });
+}
+
+if (downloadDesignBtn) {
+  downloadDesignBtn.addEventListener('click', (event) => {
+    if (downloadDesignBtn.getAttribute('aria-disabled') === 'true') {
+      event.preventDefault();
+    }
+  });
+}
+
 function refreshComposeState({ screenshotOrientation } = {}) {
   const bezelReady = Boolean(selectedBezel);
   const screenshotReady = isScreenshotReady();
@@ -243,17 +299,35 @@ function refreshComposeState({ screenshotOrientation } = {}) {
 
 function setDownloadState(enabled) {
   if (enabled) {
-    downloadBtn.setAttribute('aria-disabled', 'false');
-    copyBtn.setAttribute('aria-disabled', 'false');
-    downloadScaledBtn.setAttribute('aria-disabled', 'false');
-    copyScaledBtn.setAttribute('aria-disabled', 'false');
+    if (downloadBtn) downloadBtn.setAttribute('aria-disabled', 'false');
+    if (copyBtn) copyBtn.setAttribute('aria-disabled', 'false');
+    if (downloadScaledBtn) downloadScaledBtn.setAttribute('aria-disabled', 'false');
+    if (copyScaledBtn) copyScaledBtn.setAttribute('aria-disabled', 'false');
+    if (designBtn) {
+      designBtn.disabled = false;
+      designBtn.setAttribute('aria-disabled', 'false');
+    }
+    if (designSection && !designSection.hidden) {
+      designNeedsRefresh = true;
+      scheduleDesignUpdate({ announce: false, immediate: true });
+    }
   } else {
-    downloadBtn.setAttribute('aria-disabled', 'true');
-    downloadBtn.removeAttribute('href');
-    copyBtn.setAttribute('aria-disabled', 'true');
-    downloadScaledBtn.setAttribute('aria-disabled', 'true');
-    downloadScaledBtn.removeAttribute('href');
-    copyScaledBtn.setAttribute('aria-disabled', 'true');
+    if (downloadBtn) {
+      downloadBtn.setAttribute('aria-disabled', 'true');
+      downloadBtn.removeAttribute('href');
+    }
+    if (copyBtn) copyBtn.setAttribute('aria-disabled', 'true');
+    if (downloadScaledBtn) {
+      downloadScaledBtn.setAttribute('aria-disabled', 'true');
+      downloadScaledBtn.removeAttribute('href');
+    }
+    if (copyScaledBtn) copyScaledBtn.setAttribute('aria-disabled', 'true');
+    if (designBtn) {
+      designBtn.disabled = true;
+      designBtn.setAttribute('aria-disabled', 'true');
+    }
+    const keepVisible = Boolean(designSection && !designSection.hidden);
+    resetDesignView({ keepVisible });
   }
 }
 
@@ -273,6 +347,10 @@ function resetComposedOutput() {
   }
   composedOutputUrl = null;
   composedOutputType = null;
+  designImageDataUrl = null;
+  designNeedsRefresh = true;
+  setDesignActionsState(false);
+  designImageCache = { url: null, promise: null };
   outputImage.removeAttribute('src');
   outputImage.hidden = false;
   if (outputVideo) {
@@ -287,9 +365,12 @@ function setComposedOutput(url, type, { isObjectUrl = false } = {}) {
   if (composedObjectUrl && composedObjectUrl !== url) {
     URL.revokeObjectURL(composedObjectUrl);
   }
+  designImageCache = { url: null, promise: null };
   composedOutputUrl = url;
   composedOutputType = type;
   composedObjectUrl = isObjectUrl ? url : null;
+  designNeedsRefresh = true;
+  designImageDataUrl = null;
   if (type && type.startsWith('video')) {
     if (!outputVideo) return;
     outputImage.hidden = true;
@@ -306,6 +387,327 @@ function setComposedOutput(url, type, { isObjectUrl = false } = {}) {
       outputVideo.pause();
     }
   }
+  if (designSection && !designSection.hidden && !(type && type.startsWith('video'))) {
+    scheduleDesignUpdate({ announce: false, immediate: true });
+  } else {
+    setDesignActionsState(false);
+  }
+}
+
+function handleDesignToggle() {
+  if (!designSection) return;
+  if (!composedOutputUrl || !composedOutputType) {
+    setStatus('請先完成合成再使用設計功能。');
+    return;
+  }
+  if (composedOutputType && composedOutputType.startsWith('video')) {
+    setStatus('影片暫不支援設計功能，請先輸出靜態圖片。');
+    return;
+  }
+  const willShow = designSection.hidden;
+  designSection.hidden = !willShow;
+  if (designBtn) {
+    designBtn.setAttribute('aria-pressed', willShow ? 'true' : 'false');
+  }
+  if (willShow) {
+    designNeedsRefresh = true;
+    scheduleDesignUpdate({ announce: true, immediate: true });
+  }
+}
+
+function scheduleDesignUpdate({ announce = false, immediate = false } = {}) {
+  if (!designSection || designSection.hidden) return;
+  if (!composedOutputUrl || !composedOutputType) return;
+  if (composedOutputType && composedOutputType.startsWith('video')) {
+    if (announce) {
+      setStatus('影片暫不支援設計功能，請先輸出靜態圖片。');
+    }
+    setDesignActionsState(false);
+    return;
+  }
+  if (!designNeedsRefresh && !immediate) {
+    return;
+  }
+  if (immediate) {
+    if (designUpdateTimeout) {
+      clearTimeout(designUpdateTimeout);
+      designUpdateTimeout = null;
+    }
+    generateDesign({ announce });
+    return;
+  }
+  if (designUpdateTimeout) {
+    clearTimeout(designUpdateTimeout);
+  }
+  designUpdateTimeout = setTimeout(() => {
+    designUpdateTimeout = null;
+    generateDesign({ announce });
+  }, 120);
+}
+
+function resetDesignView({ keepVisible = false } = {}) {
+  if (designUpdateTimeout) {
+    clearTimeout(designUpdateTimeout);
+    designUpdateTimeout = null;
+  }
+  designImageDataUrl = null;
+  designNeedsRefresh = true;
+  setDesignActionsState(false);
+  if (designCanvas) {
+    const ctx = designCanvas.getContext('2d');
+    if (ctx) {
+      ctx.clearRect(0, 0, designCanvas.width, designCanvas.height);
+    }
+  }
+  if (!keepVisible && designSection) {
+    designSection.hidden = true;
+  }
+  if (designBtn && !keepVisible) {
+    designBtn.setAttribute('aria-pressed', 'false');
+  }
+}
+
+function setDesignActionsState(enabled) {
+  if (downloadDesignBtn) {
+    if (enabled && designImageDataUrl) {
+      downloadDesignBtn.setAttribute('aria-disabled', 'false');
+      downloadDesignBtn.href = designImageDataUrl;
+    } else {
+      downloadDesignBtn.setAttribute('aria-disabled', 'true');
+      downloadDesignBtn.removeAttribute('href');
+    }
+  }
+  if (copyDesignBtn) {
+    copyDesignBtn.setAttribute('aria-disabled', enabled && designImageDataUrl ? 'false' : 'true');
+  }
+}
+
+async function generateDesign({ announce = false } = {}) {
+  if (!designCanvas) return;
+  if (!composedOutputUrl || !composedOutputType) {
+    if (announce) setStatus('請先完成合成再使用設計功能。');
+    setDesignActionsState(false);
+    return;
+  }
+  if (composedOutputType && composedOutputType.startsWith('video')) {
+    if (announce) setStatus('影片暫不支援設計功能，請先輸出靜態圖片。');
+    setDesignActionsState(false);
+    return;
+  }
+
+  const ctx = designCanvas.getContext('2d');
+  if (!ctx) return;
+  const token = ++designGenerationToken;
+
+  try {
+    if (announce) setStatus('設計圖生成中…');
+    const baseImage = await loadComposedImage(composedOutputUrl);
+    if (token !== designGenerationToken) return;
+
+    await ensureDesignFontReady();
+
+    const width = designCanvas.width;
+    const height = designCanvas.height;
+    const startColor = gradientStartInput?.value || '#fbd3e9';
+    const endColor = gradientEndInput?.value || '#bb377d';
+
+    ctx.clearRect(0, 0, width, height);
+    const gradient = ctx.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, startColor);
+    gradient.addColorStop(1, endColor);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+
+    const baseFontSize = Number.parseInt(designTextSizeInput?.value, 10);
+    const fontSize = Number.isFinite(baseFontSize) ? baseFontSize : 72;
+    const text = (designTextInput?.value || '').trim();
+    const textColor = designTextColorInput?.value || '#2d0a15';
+    let drawOffsetY = height * 0.1;
+    if (text) {
+      drawOffsetY = drawDesignText(ctx, {
+        text,
+        fontSize,
+        color: textColor,
+        areaWidth: width * 0.82,
+        startX: width / 2,
+        startY: height * 0.08,
+      }) + fontSize * 0.5;
+    }
+
+    const maxImageWidth = width * 0.72;
+    const maxImageHeight = Math.max(height - drawOffsetY - height * 0.12, height * 0.35);
+    const scale = Math.min(maxImageWidth / baseImage.width, maxImageHeight / baseImage.height);
+    const drawWidth = baseImage.width * scale;
+    const drawHeight = baseImage.height * scale;
+    const drawX = (width - drawWidth) / 2;
+    const drawY = height - drawHeight - height * 0.06;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.22)';
+    ctx.shadowBlur = 48;
+    ctx.shadowOffsetY = 36;
+    ctx.drawImage(baseImage, drawX, drawY, drawWidth, drawHeight);
+    ctx.restore();
+
+    designImageDataUrl = designCanvas.toDataURL('image/png');
+    designNeedsRefresh = false;
+    if (selectedBezel) {
+      const safeName = buildSafeFileName(selectedBezel.device, selectedBezel.color, selectedBezel.orientation);
+      if (downloadDesignBtn) {
+        downloadDesignBtn.download = `design-${safeName}.png`;
+      }
+    }
+    setDesignActionsState(true);
+    if (announce) setStatus('設計圖已更新。');
+  } catch (error) {
+    console.error(error);
+    if (announce) setStatus('設計圖生成失敗：' + error.message);
+    setDesignActionsState(false);
+  }
+}
+
+function loadComposedImage(url) {
+  if (!url) {
+    return Promise.reject(new Error('無效的合成圖來源'));
+  }
+  if (designImageCache.url === url && designImageCache.promise) {
+    return designImageCache.promise;
+  }
+  const promise = new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('無法載入合成圖'));
+    img.src = url;
+  });
+  designImageCache = { url, promise };
+  return promise;
+}
+
+function drawDesignText(ctx, { text, fontSize, color, areaWidth, startX, startY }) {
+  const fontFamily = DESIGN_FONT_FAMILY;
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.font = `700 ${fontSize}px ${fontFamily}`;
+  const lines = wrapDesignText(ctx, text, areaWidth);
+  const lineHeight = fontSize * 1.15;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.18)';
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 7;
+  lines.forEach((line, index) => {
+    if (!line) return;
+    ctx.fillText(line, startX, startY + index * lineHeight);
+  });
+  ctx.restore();
+  return startY + Math.max(lines.length, 1) * lineHeight;
+}
+
+function wrapDesignText(ctx, text, maxWidth) {
+  const result = [];
+  const paragraphs = text.split(/\r?\n/);
+  paragraphs.forEach((paragraph, index) => {
+    const trimmed = paragraph.trim();
+    if (!trimmed) {
+      result.push('');
+      return;
+    }
+    const words = trimmed.split(/\s+/);
+    let line = '';
+    words.forEach((wordOriginal) => {
+      const segments = splitWordIntoChunks(wordOriginal, ctx, maxWidth);
+      segments.forEach((word) => {
+        const candidate = line ? `${line} ${word}` : word;
+        if (ctx.measureText(candidate).width <= maxWidth) {
+          line = candidate;
+        } else {
+          if (line) {
+            result.push(line);
+          }
+          line = word;
+        }
+      });
+    });
+    if (line) {
+      result.push(line);
+    }
+    if (index < paragraphs.length - 1) {
+      result.push('');
+    }
+  });
+  return result;
+}
+
+function splitWordIntoChunks(word, ctx, maxWidth) {
+  if (ctx.measureText(word).width <= maxWidth) {
+    return [word];
+  }
+  const chars = Array.from(word);
+  const chunks = [];
+  let current = '';
+  chars.forEach((char) => {
+    const candidate = current + char;
+    if (ctx.measureText(candidate).width > maxWidth && current) {
+      chunks.push(current);
+      current = char;
+    } else {
+      current = candidate;
+    }
+  });
+  if (current) {
+    chunks.push(current);
+  }
+  return chunks;
+}
+
+function ensureDesignFontReady() {
+  if (typeof document === 'undefined' || !document.fonts || !document.fonts.load) {
+    return Promise.resolve();
+  }
+  if (!designFontReadyPromise) {
+    designFontReadyPromise = Promise.resolve()
+      .then(() => Promise.all([
+        document.fonts.load(`600 48px ${DESIGN_FONT_FAMILY}`),
+        document.fonts.load(`700 72px ${DESIGN_FONT_FAMILY}`),
+      ]))
+      .catch(() => {});
+  }
+  return designFontReadyPromise;
+}
+
+async function copyDesignImage() {
+  if (!designCanvas) return;
+  if (!navigator.clipboard || !navigator.clipboard.write || typeof ClipboardItem === 'undefined') {
+    setStatus('此瀏覽器不支援複製設計圖，請改用下載。');
+    return;
+  }
+  try {
+    setStatus('正在複製設計圖…');
+    const blob = await canvasToBlob(designCanvas, 'image/png');
+    const item = new ClipboardItem({ 'image/png': blob });
+    await navigator.clipboard.write([item]);
+    setStatus('設計圖已複製到剪貼簿');
+  } catch (error) {
+    console.error(error);
+    if (error.name === 'NotAllowedError') {
+      setStatus('瀏覽器封鎖了複製權限，請改用下載。');
+    } else {
+      setStatus('複製設計圖失敗：' + error.message);
+    }
+  }
+}
+
+function canvasToBlob(canvas, type = 'image/png', quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+      } else {
+        reject(new Error('無法產生圖片資料'));
+      }
+    }, type, quality);
+  });
 }
 
 function clearScreenshot() {
