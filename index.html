@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>iPhone App 截圖外框合成工具</title>
+  <title>iPhone App Frame Composer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&display=swap" rel="stylesheet">
@@ -12,94 +12,94 @@
 <body>
   <main class="container">
     <header>
-      <h1>iPhone App 截圖外框合成工具</h1>
-      <p>上傳或貼上 App 截圖或影片（支援 PNG、JPG、GIF、MP4、MOV）並選擇想要的 iPhone 外框，立即產出帶框成品。</p>
+      <h1>iPhone App Frame Composer</h1>
+      <p>Upload or paste an app screenshot or video (PNG, JPG, GIF, MP4, MOV supported), pick an iPhone frame, and instantly get a framed result.</p>
     </header>
 
-    <section class="controls" aria-label="合成設定">
+    <section class="controls" aria-label="Composition Settings">
       <div class="field">
-        <label for="screenshotInput">App 截圖</label>
+        <label for="screenshotInput">App Screenshot</label>
         <input type="file" id="screenshotInput" accept="image/*,video/mp4,video/quicktime">
         <p id="screenshotInfo" class="hint"></p>
       </div>
 
       <div class="field">
-        <label for="deviceSelect">機型</label>
+        <label for="deviceSelect">Device</label>
         <select id="deviceSelect"></select>
       </div>
 
       <div class="field">
-        <label for="colorSelect">顏色</label>
+        <label for="colorSelect">Color</label>
         <select id="colorSelect"></select>
       </div>
 
       <div class="field">
-        <label for="orientationSelect">方向</label>
+        <label for="orientationSelect">Orientation</label>
         <select id="orientationSelect"></select>
       </div>
 
       <div class="actions">
-        <button id="resetBtn" type="button">重設</button>
-        <button id="composeBtn" type="button" disabled>合成圖片</button>
-        <a id="downloadBtn" class="button" download="bezel.png" aria-disabled="true">下載合成圖</a>
-        <button id="copyBtn" type="button" class="button" aria-disabled="true">複製合成圖</button>
-        <a id="downloadScaledBtn" class="button" download="bezel-scaled.png" aria-disabled="true">下載縮小圖</a>
-        <button id="copyScaledBtn" type="button" class="button" aria-disabled="true">複製縮小圖</button>
-        <button id="designBtn" type="button" class="button" aria-disabled="true" disabled>設計</button>
+        <button id="resetBtn" type="button">Reset</button>
+        <button id="composeBtn" type="button" disabled>Compose Image</button>
+        <a id="downloadBtn" class="button" download="bezel.png" aria-disabled="true">Download</a>
+        <button id="copyBtn" type="button" class="button" aria-disabled="true">Copy</button>
+        <a id="downloadScaledBtn" class="button" download="bezel-scaled.png" aria-disabled="true">Download Scaled</a>
+        <button id="copyScaledBtn" type="button" class="button" aria-disabled="true">Copy Scaled</button>
+        <button id="designBtn" type="button" class="button" aria-disabled="true" disabled>Design</button>
       </div>
 
       <p id="statusMessage" class="status" role="status"></p>
     </section>
 
-    <section class="preview" aria-label="預覽">
+    <section class="preview" aria-label="Preview">
       <div class="pane">
-        <h2>即時預覽</h2>
+        <h2>Live Preview</h2>
         <canvas id="previewCanvas"></canvas>
       </div>
       <div class="pane">
-        <h2>輸出樣式</h2>
-        <img id="outputImage" alt="合成結果預覽">
+        <h2>Output</h2>
+        <img id="outputImage" alt="Composed result preview">
         <video id="outputVideo" controls playsinline muted hidden></video>
       </div>
     </section>
 
-    <section id="designSection" class="design" aria-label="設計輸出" hidden>
+    <section id="designSection" class="design" aria-label="Poster Design" hidden>
       <div class="pane design-pane">
-        <h2>設計設定</h2>
+        <h2>Design Settings</h2>
         <div class="design-fields">
-          <label for="designText">標題文字</label>
-          <textarea id="designText" rows="3" placeholder="輸入要顯示的主標題">Scroll through your favourite feeds</textarea>
+          <label for="designText">Headline Text</label>
+          <textarea id="designText" rows="3" placeholder="Type the headline you want to show">Scroll through your favourite feeds</textarea>
 
           <div class="design-row">
             <div class="design-field">
-              <label for="gradientStart">上方色彩</label>
+              <label for="gradientStart">Top Color</label>
               <input type="color" id="gradientStart" value="#fbd3e9">
             </div>
             <div class="design-field">
-              <label for="gradientEnd">下方色彩</label>
+              <label for="gradientEnd">Bottom Color</label>
               <input type="color" id="gradientEnd" value="#bb377d">
             </div>
             <div class="design-field">
-              <label for="designTextColor">文字顏色</label>
+              <label for="designTextColor">Text Color</label>
               <input type="color" id="designTextColor" value="#2d0a15">
             </div>
           </div>
 
           <div class="design-field">
-            <label for="designTextSize">文字大小</label>
+            <label for="designTextSize">Text Size</label>
             <input type="range" id="designTextSize" min="36" max="120" value="72">
           </div>
 
           <div class="design-actions">
-            <button id="applyDesignBtn" type="button">更新設計</button>
-            <a id="downloadDesignBtn" class="button" download="design.png" aria-disabled="true">下載設計圖</a>
-            <button id="copyDesignBtn" type="button" class="button" aria-disabled="true">複製設計圖</button>
+            <button id="applyDesignBtn" type="button">Update Design</button>
+            <a id="downloadDesignBtn" class="button" download="design.png" aria-disabled="true">Download Poster</a>
+            <button id="copyDesignBtn" type="button" class="button" aria-disabled="true">Copy Poster</button>
           </div>
-          <p class="hint">設計圖會使用最新的合成結果，尺寸為 1080 × 1920。</p>
+          <p class="hint">The poster always uses the latest composed result and exports at 1080 × 1920.</p>
         </div>
       </div>
       <div class="pane design-preview-pane">
-        <h2>設計預覽</h2>
+        <h2>Design Preview</h2>
         <canvas id="designCanvas" width="1080" height="1920"></canvas>
       </div>
     </section>

@@ -53,20 +53,20 @@ let designFontReadyPromise = null;
 init();
 
 async function init() {
-  setStatus('載入外框資料中…');
+  setStatus('Loading frame data…');
   try {
     const response = await fetch('metadata.json');
-    if (!response.ok) throw new Error('無法讀取 metadata.json');
+    if (!response.ok) throw new Error('Unable to read metadata.json');
     bezelMetadata = await response.json();
     dataMap = buildDataMap(bezelMetadata);
     populateDeviceSelect();
     composeBtn.disabled = true;
     setDownloadState(false);
-    screenshotInfo.textContent = '可選擇檔案，或直接貼上圖片。';
-    setStatus('請上傳或貼上 App 截圖或影片並選擇外框。');
+    screenshotInfo.textContent = 'Choose a file or paste an image.';
+    setStatus('Upload or paste an app screenshot or video, then choose a frame.');
   } catch (error) {
     console.error(error);
-    setStatus('載入失敗：' + error.message);
+    setStatus('Failed to load: ' + error.message);
   }
 }
 
@@ -139,7 +139,7 @@ function populateOrientationSelect() {
   orientations.forEach((orientation) => {
     const option = document.createElement('option');
     option.value = orientation;
-    option.textContent = orientation === 'Portrait' ? '直向 (Portrait)' : '橫向 (Landscape)';
+    option.textContent = orientation === 'Portrait' ? 'Portrait' : 'Landscape';
     orientationSelect.append(option);
   });
   if (orientations.length > 0) {
@@ -186,7 +186,7 @@ window.addEventListener('paste', async (event) => {
     screenshotInput.value = '';
   } catch (error) {
     console.error(error);
-    setStatus('貼上圖片時發生錯誤：' + error.message);
+    setStatus('Error while pasting image: ' + error.message);
   }
 });
 
@@ -286,13 +286,13 @@ function refreshComposeState({ screenshotOrientation } = {}) {
   composeBtn.disabled = !(bezelReady && screenshotReady);
   setDownloadState(Boolean(composedOutputUrl));
   if (!bezelReady || !screenshotReady) {
-    setStatus('請確認截圖與外框皆已選擇。');
+    setStatus('Make sure both the screenshot and frame are selected.');
     return;
   }
   const bezelOrientation = selectedBezel.orientation;
-  let message = `已選擇：${selectedBezel.device} · ${selectedBezel.color} · ${bezelOrientation}.`;
+  let message = `Selected: ${selectedBezel.device} · ${selectedBezel.color} · ${bezelOrientation}.`;
   if (screenshotOrientation && screenshotOrientation !== bezelOrientation) {
-    message += ' 注意：截圖方向與外框不同，將自動置中填滿。';
+    message += ' Note: screenshot orientation differs from the frame and will be centered to fill the screen.';
   }
   setStatus(message);
 }
@@ -337,7 +337,7 @@ function setStatus(message) {
 
 function handleReset() {
   clearScreenshot();
-  setStatus('已重設，請上傳或貼上 App 截圖或影片並選擇外框。');
+  setStatus('Reset complete. Upload or paste an app screenshot or video and choose a frame.');
 }
 
 function resetComposedOutput() {
@@ -397,11 +397,11 @@ function setComposedOutput(url, type, { isObjectUrl = false } = {}) {
 function handleDesignToggle() {
   if (!designSection) return;
   if (!composedOutputUrl || !composedOutputType) {
-    setStatus('請先完成合成再使用設計功能。');
+    setStatus('Please compose an image before using the design tools.');
     return;
   }
   if (composedOutputType && composedOutputType.startsWith('video')) {
-    setStatus('影片暫不支援設計功能，請先輸出靜態圖片。');
+    setStatus('Poster design is not available for videos. Please output a static image first.');
     return;
   }
   const willShow = designSection.hidden;
@@ -420,7 +420,7 @@ function scheduleDesignUpdate({ announce = false, immediate = false } = {}) {
   if (!composedOutputUrl || !composedOutputType) return;
   if (composedOutputType && composedOutputType.startsWith('video')) {
     if (announce) {
-      setStatus('影片暫不支援設計功能，請先輸出靜態圖片。');
+      setStatus('Poster design is not available for videos. Please output a static image first.');
     }
     setDesignActionsState(false);
     return;
@@ -485,12 +485,12 @@ function setDesignActionsState(enabled) {
 async function generateDesign({ announce = false } = {}) {
   if (!designCanvas) return;
   if (!composedOutputUrl || !composedOutputType) {
-    if (announce) setStatus('請先完成合成再使用設計功能。');
+    if (announce) setStatus('Please compose an image before using the design tools.');
     setDesignActionsState(false);
     return;
   }
   if (composedOutputType && composedOutputType.startsWith('video')) {
-    if (announce) setStatus('影片暫不支援設計功能，請先輸出靜態圖片。');
+    if (announce) setStatus('Poster design is not available for videos. Please output a static image first.');
     setDesignActionsState(false);
     return;
   }
@@ -500,7 +500,7 @@ async function generateDesign({ announce = false } = {}) {
   const token = ++designGenerationToken;
 
   try {
-    if (announce) setStatus('設計圖生成中…');
+    if (announce) setStatus('Generating poster…');
     const baseImage = await loadComposedImage(composedOutputUrl);
     if (token !== designGenerationToken) return;
 
@@ -558,17 +558,17 @@ async function generateDesign({ announce = false } = {}) {
       }
     }
     setDesignActionsState(true);
-    if (announce) setStatus('設計圖已更新。');
+    if (announce) setStatus('Poster updated.');
   } catch (error) {
     console.error(error);
-    if (announce) setStatus('設計圖生成失敗：' + error.message);
+    if (announce) setStatus('Failed to generate poster: ' + error.message);
     setDesignActionsState(false);
   }
 }
 
 function loadComposedImage(url) {
   if (!url) {
-    return Promise.reject(new Error('無效的合成圖來源'));
+    return Promise.reject(new Error('Invalid composed image source'));
   }
   if (designImageCache.url === url && designImageCache.promise) {
     return designImageCache.promise;
@@ -577,7 +577,7 @@ function loadComposedImage(url) {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('無法載入合成圖'));
+    img.onerror = () => reject(new Error('Unable to load composed image'));
     img.src = url;
   });
   designImageCache = { url, promise };
@@ -679,21 +679,21 @@ function ensureDesignFontReady() {
 async function copyDesignImage() {
   if (!designCanvas) return;
   if (!navigator.clipboard || !navigator.clipboard.write || typeof ClipboardItem === 'undefined') {
-    setStatus('此瀏覽器不支援複製設計圖，請改用下載。');
+    setStatus('This browser does not support copying posters. Please download instead.');
     return;
   }
   try {
-    setStatus('正在複製設計圖…');
+    setStatus('Copying poster…');
     const blob = await canvasToBlob(designCanvas, 'image/png');
     const item = new ClipboardItem({ 'image/png': blob });
     await navigator.clipboard.write([item]);
-    setStatus('設計圖已複製到剪貼簿');
+    setStatus('Poster copied to the clipboard.');
   } catch (error) {
     console.error(error);
     if (error.name === 'NotAllowedError') {
-      setStatus('瀏覽器封鎖了複製權限，請改用下載。');
+      setStatus('Clipboard access was blocked. Please download instead.');
     } else {
-      setStatus('複製設計圖失敗：' + error.message);
+      setStatus('Failed to copy poster: ' + error.message);
     }
   }
 }
@@ -704,7 +704,7 @@ function canvasToBlob(canvas, type = 'image/png', quality) {
       if (blob) {
         resolve(blob);
       } else {
-        reject(new Error('無法產生圖片資料'));
+        reject(new Error('Unable to generate image data'));
       }
     }, type, quality);
   });
@@ -736,7 +736,7 @@ function clearScreenshot() {
   }
   resetComposedOutput();
   setDownloadState(false);
-  screenshotInfo.textContent = '可選擇檔案，或直接貼上圖片。';
+  screenshotInfo.textContent = 'Choose a file or paste an image.';
   refreshComposeState();
 }
 
@@ -766,7 +766,7 @@ async function processScreenshotFile(file, { source = 'upload' } = {}) {
       width = gifData.width;
       height = gifData.height;
       orientation = getOrientation(width, height);
-      infoLabel = `GIF · 幀數：${gifData.frames.length}`;
+      infoLabel = `GIF · Frames: ${gifData.frames.length}`;
       screenshotImage = null;
     } else if (file.type.startsWith('video/') || file.name?.toLowerCase().match(/\.(mp4|mov)$/)) {
       const videoData = await loadVideoFromFile(file);
@@ -779,7 +779,7 @@ async function processScreenshotFile(file, { source = 'upload' } = {}) {
       height = videoData.height;
       orientation = getOrientation(width, height);
       const durationSeconds = Number.isFinite(videoData.duration) ? videoData.duration : 0;
-      infoLabel = `影片 · 時長：${durationSeconds.toFixed(1)} 秒`;
+      infoLabel = `Video · Duration: ${durationSeconds.toFixed(1)} s`;
     } else {
       const { image, width: imgWidth, height: imgHeight } = await loadImageFromFile(file);
       screenshotType = 'image';
@@ -791,14 +791,14 @@ async function processScreenshotFile(file, { source = 'upload' } = {}) {
     }
     screenshotDimensions = { width, height };
     setDownloadState(false);
-    const sourceLabel = source === 'paste' ? '剪貼簿' : '檔案';
+    const sourceLabel = source === 'paste' ? 'Clipboard' : 'File';
     const typeLabel = infoLabel ? `${infoLabel} · ` : '';
-    screenshotInfo.textContent = `${sourceLabel} · ${typeLabel}尺寸：${width} × ${height}，方向：${orientation === 'Portrait' ? '直向' : '橫向'}`;
+    screenshotInfo.textContent = `${sourceLabel} · ${typeLabel}Size: ${width} × ${height}, Orientation: ${orientation === 'Portrait' ? 'Portrait' : 'Landscape'}`;
     autoSelectBezelForScreenshot(width, height);
     refreshComposeState({ screenshotOrientation: orientation });
   } catch (error) {
     console.error(error);
-    setStatus('載入截圖失敗：' + error.message);
+    setStatus('Failed to load screenshot: ' + error.message);
   }
 }
 
@@ -1079,7 +1079,7 @@ async function loadGifFromFile(file) {
   const parsed = parseGIF(arrayBuffer);
   const frames = decompressFrames(parsed, true);
   if (!frames.length) {
-    throw new Error('GIF 未包含任何幀影像');
+    throw new Error('GIF does not contain any frames');
   }
 
   const width = parsed.lsd.width;
@@ -1135,7 +1135,7 @@ async function loadGifFromFile(file) {
   });
 
   if (!composedFrames.length) {
-    throw new Error('無法解析 GIF 幀資料');
+    throw new Error('Unable to parse GIF frame data');
   }
 
   return {
@@ -1160,7 +1160,7 @@ async function loadVideoFromFile(file) {
     const onLoaded = () => {
       cleanup();
       if (!video.videoWidth || !video.videoHeight) {
-        reject(new Error('無法取得影片尺寸'));
+        reject(new Error('Unable to obtain video dimensions'));
         URL.revokeObjectURL(url);
         return;
       }
@@ -1175,7 +1175,7 @@ async function loadVideoFromFile(file) {
     const onError = () => {
       cleanup();
       URL.revokeObjectURL(url);
-      reject(new Error('影片讀取失敗'));
+      reject(new Error('Failed to load video'));
     };
     video.addEventListener('loadedmetadata', onLoaded, { once: true });
     video.addEventListener('error', onError, { once: true });
@@ -1190,10 +1190,10 @@ function loadImageFromFile(file) {
       image.onload = () => {
         resolve({ image, width: image.naturalWidth, height: image.naturalHeight });
       };
-      image.onerror = () => reject(new Error('圖片讀取失敗'));
+      image.onerror = () => reject(new Error('Failed to load image'));
       image.src = reader.result;
     };
-    reader.onerror = () => reject(new Error('檔案讀取失敗'));
+    reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsDataURL(file);
   });
 }
@@ -1203,7 +1203,7 @@ function loadImage(path) {
     const promise = new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('無法載入外框圖檔'));
+      img.onerror = () => reject(new Error('Unable to load frame image'));
       img.src = path;
     });
     bezelCache.set(path, promise);
@@ -1259,7 +1259,7 @@ async function getMask(path, bezel, meta) {
         }
       }
       if (!found) {
-        throw new Error('無法建立遮罩：找不到透明螢幕區域');
+        throw new Error('Unable to build mask: transparent screen area not found');
       }
     }
 
@@ -1334,7 +1334,7 @@ async function compose() {
   if (!selectedBezel || !isScreenshotReady()) return;
   composeBtn.disabled = true;
   try {
-    setStatus('合成中…');
+    setStatus('Composing…');
     let result;
     if (screenshotType === 'gif') {
       result = await composeGif();
@@ -1346,7 +1346,7 @@ async function compose() {
     setStatus(result.statusMessage);
   } catch (error) {
     console.error(error);
-    setStatus('合成失敗：' + error.message);
+    setStatus('Composition failed: ' + error.message);
   } finally {
     refreshComposeState();
   }
@@ -1386,12 +1386,12 @@ async function composeStatic() {
   setComposedOutput(dataUrl, 'image/png');
   const safeName = buildSafeFileName(device, color, orientation);
   updateDownloadLink(safeName, 'png');
-  return { statusMessage: '合成完成' };
+  return { statusMessage: 'Composition complete' };
 }
 
 async function composeGif() {
   if (!Array.isArray(screenshotGifFrames) || !screenshotGifFrames.length) {
-    throw new Error('GIF 幀資料不足');
+    throw new Error('Not enough GIF frame data');
   }
   const { path, meta, device, color, orientation } = selectedBezel;
   const bezel = await loadImage(path);
@@ -1439,7 +1439,7 @@ async function composeGif() {
   });
 
   if (!composedFrames.length) {
-    throw new Error('GIF 幀無法合成');
+    throw new Error('Unable to compose GIF frames');
   }
 
   // Build palette from up to the first 5 frames to reduce flicker.
@@ -1485,15 +1485,15 @@ async function composeGif() {
 
   const safeName = buildSafeFileName(device, color, orientation);
   updateDownloadLink(safeName, 'gif');
-  return { statusMessage: 'GIF 合成完成，可下載。' };
+  return { statusMessage: 'GIF composition complete. Ready to download.' };
 }
 
 async function composeVideo() {
   if (!screenshotVideo || !screenshotVideoUrl) {
-    throw new Error('影片尚未準備完成');
+    throw new Error('Video is not ready yet');
   }
   if (typeof MediaRecorder === 'undefined') {
-    throw new Error('瀏覽器不支援 MediaRecorder 影片輸出');
+    throw new Error('This browser does not support MediaRecorder video export');
   }
   const capture = previewCanvas.captureStream
     ? previewCanvas.captureStream(30)
@@ -1501,11 +1501,11 @@ async function composeVideo() {
       ? previewCanvas.mozCaptureStream(30)
       : null;
   if (!capture) {
-    throw new Error('瀏覽器不支援畫面擷取');
+    throw new Error('Screen capture is not supported in this browser');
   }
   const mimeType = getSupportedRecorderMimeType();
   if (!mimeType) {
-    throw new Error('此瀏覽器不支援 MP4 影片錄製');
+    throw new Error('MP4 recording is not supported in this browser');
   }
 
   const { path, meta, device, color, orientation } = selectedBezel;
@@ -1531,7 +1531,7 @@ async function composeVideo() {
   try {
     recorder = new MediaRecorder(capture, { mimeType });
   } catch (error) {
-    throw new Error('無法啟動影片錄製');
+    throw new Error('Unable to start video recording');
   }
 
   recorder.ondataavailable = (event) => {
@@ -1554,7 +1554,7 @@ async function composeVideo() {
     const fail = (error) => {
       if (resolved) return;
       resolved = true;
-      reject(error instanceof Error ? error : new Error(error || '影片處理失敗'));
+      reject(error instanceof Error ? error : new Error(error || 'Video processing failed'));
     };
 
     const video = document.createElement('video');
@@ -1604,12 +1604,12 @@ async function composeVideo() {
 
     const onVideoError = () => {
       stopRecording();
-      fail(new Error('影片播放失敗'));
+      fail(new Error('Video playback failed'));
     };
 
     recorder.onerror = () => {
       stopRecording();
-      fail(new Error('錄製過程發生錯誤'));
+      fail(new Error('An error occurred during recording'));
     };
 
     recorder.onstop = () => {
@@ -1621,7 +1621,7 @@ async function composeVideo() {
       const blobUrl = URL.createObjectURL(blob);
       setComposedOutput(blobUrl, mimeType, { isObjectUrl: true });
       updateDownloadLink(safeName, mimeTypeToExtension(mimeType));
-      finish({ statusMessage: '影片合成完成' });
+      finish({ statusMessage: 'Video composition complete.' });
     };
 
     const attachAudioTracks = () => {
@@ -1639,7 +1639,7 @@ async function composeVideo() {
         await video.play();
       } catch (error) {
         capture.getTracks().forEach((track) => track.stop());
-        fail(new Error('影片播放失敗'));
+        fail(new Error('Video playback failed'));
         return;
       }
 
@@ -1653,7 +1653,7 @@ async function composeVideo() {
           stream.getTracks().forEach((track) => track.stop());
         });
         video.pause();
-        fail(new Error('無法開始錄製影片'));
+        fail(new Error('Unable to start video recording'));
         return;
       }
 
@@ -1710,15 +1710,15 @@ function mimeTypeToExtension(mime) {
 
 async function downloadScaledVersion() {
   if (!composedOutputUrl || !composedOutputType) {
-    setStatus('請先完成合成再下載縮小圖');
+    setStatus('Compose an image before downloading the scaled version');
     return;
   }
 
   try {
-    setStatus('產生縮小圖中…');
+    setStatus('Generating scaled image…');
 
     if (composedOutputType.startsWith('video')) {
-      setStatus('影片暫不支援縮小功能');
+      setStatus('Scaling is not available for videos');
       return;
     }
 
@@ -1737,7 +1737,7 @@ async function downloadScaledVersion() {
 
       // For GIF, we need to re-encode all frames at 50% size
       if (!Array.isArray(screenshotGifFrames) || !screenshotGifFrames.length) {
-        setStatus('GIF 幀資料不足');
+        setStatus('Not enough GIF frame data');
         return;
       }
 
@@ -1862,30 +1862,30 @@ async function downloadScaledVersion() {
       setTimeout(() => URL.revokeObjectURL(scaledUrl), 1000);
     }
 
-    setStatus('縮小圖已下載');
+    setStatus('Scaled image downloaded');
   } catch (error) {
     console.error(error);
-    setStatus('產生縮小圖失敗：' + error.message);
+    setStatus('Failed to generate scaled image: ' + error.message);
   }
 }
 
 async function copyComposedImage() {
   if (!composedOutputUrl || !composedOutputType) {
-    setStatus('請先完成合成再複製圖片');
+    setStatus('Compose an image before copying.');
     return;
   }
 
   try {
-    setStatus('正在複製到剪貼簿…');
+    setStatus('Copying to clipboard…');
 
     if (composedOutputType.startsWith('video')) {
-      setStatus('影片暫不支援複製功能');
+      setStatus('Copying is not available for videos');
       return;
     }
 
     // Check if clipboard write is supported
     if (!navigator.clipboard || !navigator.clipboard.write) {
-      setStatus('此瀏覽器不支援複製功能。請使用下載功能。');
+      setStatus('This browser does not support copying. Please use download.');
       return;
     }
 
@@ -1896,52 +1896,52 @@ async function copyComposedImage() {
         'image/png': new Promise((resolve, reject) => {
           previewCanvas.toBlob((blob) => {
             if (blob) resolve(blob);
-            else reject(new Error('無法轉換圖片'));
+            else reject(new Error('Unable to convert image'));
           }, 'image/png');
         })
       });
       await navigator.clipboard.write([item]);
-      setStatus('已複製到剪貼簿（GIF 已轉為靜態圖片）');
+      setStatus('Copied to clipboard (GIF converted to static image).');
     } else {
       // For static images - use PNG format
       const item = new ClipboardItem({
         'image/png': new Promise((resolve, reject) => {
           previewCanvas.toBlob((blob) => {
             if (blob) resolve(blob);
-            else reject(new Error('無法轉換圖片'));
+            else reject(new Error('Unable to convert image'));
           }, 'image/png');
         })
       });
       await navigator.clipboard.write([item]);
-      setStatus('已複製到剪貼簿');
+      setStatus('Copied to clipboard.');
     }
   } catch (error) {
     console.error(error);
     if (error.name === 'NotAllowedError') {
-      setStatus('Safari 需要 HTTPS 才能使用複製功能。請使用下載功能。');
+      setStatus('Safari requires HTTPS to copy images. Please download instead.');
     } else {
-      setStatus('複製失敗：' + error.message + '。請使用下載功能。');
-    }
+      setStatus('Copy failed: ' + error.message + '. Please download instead.');
   }
+}
 }
 
 async function copyScaledVersion() {
   if (!composedOutputUrl || !composedOutputType) {
-    setStatus('請先完成合成再複製縮小圖');
+    setStatus('Compose an image before copying the scaled version.');
     return;
   }
 
   try {
-    setStatus('產生縮小圖並複製中…');
+    setStatus('Generating scaled image and copying…');
 
     if (composedOutputType.startsWith('video')) {
-      setStatus('影片暫不支援縮小功能');
+      setStatus('Scaling is not available for videos');
       return;
     }
 
     // Check if clipboard write is supported
     if (!navigator.clipboard || !navigator.clipboard.write) {
-      setStatus('此瀏覽器不支援複製功能。請使用下載功能。');
+      setStatus('This browser does not support copying. Please use download.');
       return;
     }
 
@@ -1951,7 +1951,7 @@ async function copyScaledVersion() {
     if (composedOutputType === 'image/gif') {
       // For GIF, scale using canvas
       if (!Array.isArray(screenshotGifFrames) || !screenshotGifFrames.length) {
-        setStatus('GIF 幀資料不足');
+        setStatus('Not enough GIF frame data');
         return;
       }
 
@@ -2059,12 +2059,12 @@ async function copyScaledVersion() {
         'image/png': new Promise((resolve, reject) => {
           gifFrameCanvas.toBlob((blob) => {
             if (blob) resolve(blob);
-            else reject(new Error('無法轉換圖片'));
+            else reject(new Error('Unable to convert image'));
           }, 'image/png');
         })
       });
       await navigator.clipboard.write([item]);
-      setStatus('縮小圖已複製到剪貼簿（GIF 已轉為靜態圖片）');
+      setStatus('Scaled image copied to clipboard (GIF converted to static image).');
     } else {
       // For static images (PNG, JPG)
       const img = new Image();
@@ -2085,19 +2085,19 @@ async function copyScaledVersion() {
         'image/png': new Promise((resolve, reject) => {
           scaledCanvas.toBlob((blob) => {
             if (blob) resolve(blob);
-            else reject(new Error('無法轉換圖片'));
+            else reject(new Error('Unable to convert image'));
           }, 'image/png');
         })
       });
       await navigator.clipboard.write([item]);
-      setStatus('縮小圖已複製到剪貼簿');
+      setStatus('Scaled image copied to clipboard.');
     }
   } catch (error) {
     console.error(error);
     if (error.name === 'NotAllowedError') {
-      setStatus('Safari 需要 HTTPS 才能使用複製功能。請使用下載功能。');
+      setStatus('Safari requires HTTPS to copy images. Please download instead.');
     } else {
-      setStatus('複製縮小圖失敗：' + error.message + '。請使用下載功能。');
+      setStatus('Failed to copy scaled image: ' + error.message + '. Please download instead.');
     }
   }
 }
